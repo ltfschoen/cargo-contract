@@ -1,59 +1,162 @@
 use anyhow::{Error, Result};
 use std::{
-    ffi::OsStr,
     fs::canonicalize,
-    path::Path,
     path::PathBuf,
     process::Command,
     str::from_utf8,
 };
 
-fn get_extension_from_filename(filename: &str) -> Option<&str> {
-    Path::new(filename)
-        .extension()
-        .and_then(OsStr::to_str)
-}
-
-pub fn build_solidity_contract(solidity_filename: String, build_release: &bool) -> Result<PathBuf, Error> {
-    let solidity_file_relative_path = format!("./{solidity_filename}");
-    let solidity_file_dir = PathBuf::from(solidity_file_relative_path);
-    let canonical_solidity_file_dir = canonicalize(&solidity_file_dir)?;
-    let exists_solidity_file = std::path::Path::new(&canonical_solidity_file_dir).exists();
-
+// compile Solidity smart contract to WASM using Solang `solang`
+pub fn build_solidity_contract(
+    emit: &str,
+    contract: &str,
+    no_constant_folding: &str,
+    no_strength_reduce: &str,
+    optimizer_level: &str,
+    no_dead_storage: &str,
+    target: &str,
+    address_length: &str,
+    no_vector_to_slice: &str,
+    no_cse: &str,
+    value_length: &str,
+    standard_json: &str,
+    verbose: &str,
+    output_dir: &str,
+    output_meta: &str,
+    import_path: &str,
+    import_map: &str,
+    no_log_api_return_codes: &str,
+    no_log_runtime_errors: &str,
+    no_print: &str,
+    release: &str,
+    solidity_filename: &str,
+) -> Result<(), Error> {
+    // TODO - refactor so not repeating code in build.rs
     let project_root_relative_path = format!("./");
     let project_root_dir = PathBuf::from(project_root_relative_path);
     let canonical_project_root_dir = canonicalize(&project_root_dir)?;
+    println!("canonical_project_root_dir: {}", canonical_project_root_dir.display());
+    let os_string = canonical_project_root_dir.clone().into_os_string();
+    let canonical_project_root_dir_str = os_string.clone().into_string().unwrap();
+    println!("canonical_project_root_dir_str: {}", canonical_project_root_dir_str);
 
-    let compilers_shell_script_relative_path = format!("./compilers.sh");
-    let compilers_shell_script_file_dir = PathBuf::from(compilers_shell_script_relative_path);
-    let canonical_compilers_shell_script_file_dir = canonicalize(&compilers_shell_script_file_dir)?;
-
-    if get_extension_from_filename(&solidity_filename) == Some("sol") && exists_solidity_file {
-        println!("Found file {:?} with Solidity file extension in the project root", solidity_filename);
-
-        let output = if cfg!(target_os = "windows") {
-            println!("Detected Windows OS");
-            Command::new("cmd")
-                // project root directory
-                .current_dir(canonical_project_root_dir.clone())
-                .arg(format!("{:?} {:?} {:?} {:?}",
-                    canonical_compilers_shell_script_file_dir.display(), &solidity_filename, &canonical_solidity_file_dir, &build_release))
-                .output()
-                .expect("failed to execute process")
+    let empty = "".to_string();
+    let mut used_output_dir: String = "".to_string();
+    if output_meta == empty {
+        if output_dir == empty {
+            used_output_dir = canonical_project_root_dir_str;
         } else {
-            Command::new("sh")
-                // project root directory
-                .current_dir(canonical_project_root_dir.clone())
-                .arg("-c")
-                .arg(format!("{:?} {:?} {:?} {:?}",
-                    canonical_compilers_shell_script_file_dir.display(), &solidity_filename, &canonical_solidity_file_dir, &build_release))
-                .output()
-                .expect("failed to execute process")
-        };
-        let output = output.stdout;
-        println!("output: {:#?}", from_utf8(&output).unwrap());
-        return Ok(canonical_project_root_dir)
+            used_output_dir = output_dir.to_string();
+        }
     } else {
-        anyhow::bail!("Unable to find a filename {:?} with .sol file extension in the project root folder", solidity_filename);
+        used_output_dir = output_meta.to_string();
     }
+
+    // Detect if `solang` binary exists in PATH
+    match Command::new("solang").spawn() {
+        Ok(_) => {
+            println!("Detected solang binary...\n");
+            // to get here the user ran `cargo contract build ...`
+            println!("Ready to build using Solang Compiler for Substrate.\n");
+            println!("Ready to generating ABI .contract and contract .wasm files in {:?}.\n", used_output_dir.to_string());
+        },
+        Err(e) => {
+            if let std::io::ErrorKind::NotFound = e.kind() {
+                println!("`solang` command could not be found.\n\n");
+                println!("Please follow the installation instructions at https://github.com/hyperledger/solang then check your PATH and try again...\n\n");
+            } else {
+                println!("Error encountered trying to detect `solang` {:#?}", e);
+            }
+        },
+    }
+
+    // if you run `cargo run -p cargo-contract contract build --solang --contract flipper -v --release --help` then that should translate to running:
+    // e.g. `solang compile --solang --contract flipper --target substrate -v --release --help`
+    //
+    // `cargo run -p cargo-contract contract build --solang --contract flipper -v --release --solidity-filename /Users/.../cargo-contract/flipper.sol`
+
+    // println!("{},{},{}", target.to_string(), release.to_string(), solidity_filename.to_string());
+    // let args = [
+        // "solang".to_string(),
+        // "compile".to_string(),
+        // emit.to_string(),
+        // contract.to_string(),
+        // no_constant_folding.to_string(),
+        // no_strength_reduce.to_string(),
+        // optimizer_level.to_string(),
+        // no_dead_storage.to_string(),
+        // target.to_string(),
+        // address_length.to_string(),
+        // no_vector_to_slice.to_string(),
+        // no_cse.to_string(),
+        // value_length.to_string(),
+        // standard_json.to_string(),
+        // verbose.to_string(),
+        // output_dir.to_string(),
+        // output_meta.to_string(),
+        // import_path.to_string(),
+        // import_map.to_string(),
+        // no_log_api_return_codes.to_string(),
+        // no_log_runtime_errors.to_string(),
+        // no_print.to_string(),
+        // release.to_string(),
+        // solidity_filename.to_string(),
+    // ];
+    let arr = vec![
+        "solang".to_string(),
+        "compile".to_string(),
+        emit.to_string(),
+        contract.to_string(),
+        no_constant_folding.to_string(),
+        no_strength_reduce.to_string(),
+        optimizer_level.to_string(),
+        no_dead_storage.to_string(),
+        target.to_string(),
+        address_length.to_string(),
+        no_vector_to_slice.to_string(),
+        no_cse.to_string(),
+        value_length.to_string(),
+        standard_json.to_string(),
+        verbose.to_string(),
+        output_dir.to_string(),
+        output_meta.to_string(),
+        import_path.to_string(),
+        import_map.to_string(),
+        no_log_api_return_codes.to_string(),
+        no_log_runtime_errors.to_string(),
+        no_print.to_string(),
+        release.to_string(),
+        solidity_filename.to_string(),
+    ];
+    let arg: String = arr.join(" ");
+    println!("arg: {}", arg);
+
+    // note: unable to get it to detect subcommand `compile` if use `Command::new("solang")` without `.arg("-c")`
+    // hence why using `sh` instead.
+    // let output = if cfg!(target_os = "windows") {
+    //     // https://doc.rust-lang.org/std/process/struct.Command.html#
+
+    // } else {
+    let output = Command::new("sh")
+            .current_dir(canonical_project_root_dir.clone())
+            .arg("-c")
+            .arg(arg)
+            // .arg("solang compile --target substrate --release /Users/.../cargo-contract/flipper.sol")
+            // .args(&args)
+            // .args(
+            //     [
+            //         "solang",
+            //         "compile",
+            //         "--target substrate",
+            //         "--release",
+            //         "/Users/.../cargo-contract/flipper.sol"
+            //     ]
+            // )
+            .output()
+            .expect("failed to execute process");
+    // };
+    let output = output.stdout;
+    println!("output: {}", from_utf8(&output).unwrap());
+
+    return Ok(())
 }

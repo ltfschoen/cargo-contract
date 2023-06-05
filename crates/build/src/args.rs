@@ -27,7 +27,7 @@ pub struct VerbosityFlags {
     #[clap(long)]
     quiet: bool,
     /// Use verbose output
-    #[clap(long)]
+    #[clap(short('v'), long)]
     verbose: bool,
 }
 
