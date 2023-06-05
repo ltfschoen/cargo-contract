@@ -1,3 +1,15 @@
 target
 **/*.rs.bk
 .vscode
+
+# Solidity smart contracts and Solang build outputs
+*.abi
+*.bin
+*.contract
+*.sol
+*.wasm
+
+# Node.js dependencies incase install solcjs
+node_modules/
+package-lock.json
+package.json
