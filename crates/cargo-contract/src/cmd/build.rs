@@ -289,13 +289,13 @@ impl BuildCommand {
                 _verbose = "--verbose".to_string();
             }
 
-            let mut _output_dir: String = canonical_project_root_dir_str.clone();
+            let mut _output_dir: String = empty.to_string();
             if let Some(output) = &self.output {
                 let arr = vec!["--output", " ", output];
                 _output_dir = arr.concat();
             }
 
-            let mut _output_meta: String = canonical_project_root_dir_str.clone();
+            let mut _output_meta: String = empty.to_string();
             if let Some(output_meta) = &self.output_meta {
                 let arr = vec!["--output-meta", " ", output_meta];
                 _output_meta = arr.concat();
