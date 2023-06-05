@@ -70,10 +70,10 @@ pub fn build_solidity_contract(
         },
     }
 
-    // if you run: `cargo run -p cargo-contract contract build --solang --contract flipper -v --release --help` then that should translate to running:
-    // e.g. `solang compile --solang --contract flipper --target substrate -v --release --help`
+    // if you run: `cargo run -p cargo-contract contract build -v --release --help` then that should translate to running:
+    // e.g. `solang compile --target substrate -v --release --help`
     //
-    // or to compile run: `cargo run -p cargo-contract contract build --solang --contract flipper -v --release --solidity-filename /Users/.../cargo-contract/flipper.sol`
+    // or to compile run: `cargo run -p cargo-contract contract build --contract flipper -v --release --solidity-filename /Users/.../cargo-contract/flipper.sol`
 
     let arr = vec![
         "solang".to_string(),

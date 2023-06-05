@@ -137,8 +137,6 @@ pub struct BuildCommand {
     ///
     /// Only build .sol Solidity files in the project root using Solang.
     #[clap(long)]
-    solang: bool,
-    #[clap(long)]
     emit: Option<String>,
     // filter so only compile these contract names
     #[clap(long)]
@@ -183,7 +181,7 @@ pub struct BuildCommand {
 
 impl BuildCommand {
     pub fn exec(&self) -> Result<BuildResult> {
-        if self.solang {
+        if self.solidity_filename.is_some() {
             println!("Processing Solang");
 
             // TODO - reuse most of this to generate `canonical_solidity_file_dir`
