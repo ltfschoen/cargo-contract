@@ -43,7 +43,7 @@ use std::{
     path::PathBuf,
 };
 /// Executes smart contract tests off-chain by delegating to `cargo test`.
-#[derive(Debug, clap::Args)] // Parse,
+#[derive(Debug, clap::Args, Default)] // Parse,
 #[clap(name = "test")]
 pub struct TestCommand {
     /// Contract package to test.
@@ -57,7 +57,7 @@ pub struct TestCommand {
     manifest_path: Option<PathBuf>,
     /// Test all contract packages in the workspace.
     #[clap(long = "workspace")]
-    test_workspace: bool,
+    build_workspace: bool,
     #[clap(flatten)]
     verbosity: VerbosityFlags,
 }
@@ -70,26 +70,16 @@ impl TestCommand {
 
         let mut test_results = Vec::new();
 
-        let mut test_all = || -> Result<()> {
-            let workspace_members = get_cargo_workspace_members(&manifest_path)?;
-            for (i, package_id) in workspace_members.iter().enumerate() {
-                let subcontract_manifest_path =
-                    ManifestPath::new_from_subcontract_package_id(package_id.clone())
-                        .expect("Error extracting package manifest path");
-                test_results.push(execute(
-                    &subcontract_manifest_path,
-                    verbosity,
-                    Some((i + 1, workspace_members.len())),
-                )?);
-            }
-            Ok(())
+        let args = ExecuteArgs {
+            package: self.package.clone(),
+            build_workspace: self.build_workspace(),
+            check_workspace: false,
+            manifest_path: manifest_path.clone(),
+            verbosity,
+            ..Default::default()
         };
 
-        if self.test_workspace || is_virtual_manifest(&manifest_path)? {
-            test_all()?;
-        } else {
-            test_results.push(execute(&manifest_path, verbosity, None)?)
-        }
+        test_results = contract_build::exec(args)?;
 
         Ok(test_results)
     }
@@ -138,8 +128,16 @@ pub(crate) fn execute(
 #[cfg(test)]
 mod tests_ci_only {
     use crate::{
-        cmd::util::tests::with_new_contract_project,
+        // cmd::util::tests::with_new_contract_project,
         Verbosity,
+    };
+    use contract_build::{
+        util::{
+            tests:{
+                with_new_contract_project
+            }
+        },
+        // Verbosity,
     };
     use regex::Regex;
     #[test]
@@ -148,7 +146,7 @@ mod tests_ci_only {
             let ok_output_pattern =
                 Regex::new(r"test result: ok. \d+ passed; 0 failed; \d+ ignored")
                     .expect("regex pattern compilation failed");
-            let res = super::execute(&manifest_path, Verbosity::Default, None)
+            let res = contract_build::execute(&manifest_path, Verbosity::Default, None)
                 .expect("test execution failed");
             assert!(ok_output_pattern.is_match(&String::from_utf8_lossy(&res.stdout)));
             Ok(())
